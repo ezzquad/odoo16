@@ -13,7 +13,8 @@ class TestCommonTimesheet(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super(TestCommonTimesheet, cls).setUpClass()
-
+        cls.env.user.tz = "Europe/Brussels"
+        cls.env.company.resource_calendar_id.tz = "Europe/Brussels"
         # Crappy hack to disable the rule from timesheet grid, if it exists
         # The registry doesn't contain the field timesheet_manager_id.
         # but there is an ir.rule about it, crashing during its evaluation
@@ -570,3 +571,40 @@ class TestTimesheet(TestCommonTimesheet):
         self.env.company.timesheet_encode_uom_id = self.env.ref('uom.product_uom_day')
         self.assertEqual(project.total_timesheet_time, 8, "Total timesheet time should be 8 hours")
         self.assertEqual(project.timesheet_encode_uom_id.name, 'Days', "Timesheet encode uom should be 'Days'")
+
+    def test_create_timesheet_with_companyless_analytic_account(self):
+        """ This test ensures that a timesheet can be created on an analytic account whose company_id is set to False"""
+        self.project_customer.analytic_account_id.company_id = False
+        timesheet = self.env['account.analytic.line'].with_user(self.user_employee).create(
+            {'unit_amount': 1.0, 'project_id': self.project_customer.id})
+        self.assertEqual(timesheet.product_uom_id, self.project_customer.company_id.project_time_mode_id,
+                         "The product_uom_id of the timesheet should be equal to the project's company uom "
+                         "if the project's analytic account has no company_id")
+
+    def test_percentage_of_planned_hours(self):
+        """ Test the percentage of planned hours on a task. """
+        self.task1.planned_hours = round(11/60, 2)
+        self.assertEqual(self.task1.effective_hours, 0, 'No timesheet should be created yet.')
+        self.assertEqual(self.task1.progress, 0, 'No timesheet should be created yet.')
+        self.env['account.analytic.line'].create([
+            {
+                'name': 'Timesheet',
+                'project_id': self.project_customer.id,
+                'task_id': self.task1.id,
+                'unit_amount': 3/60,
+                'employee_id': self.empl_employee.id,
+            }, {
+                'name': 'Timesheet',
+                'project_id': self.project_customer.id,
+                'task_id': self.task1.id,
+                'unit_amount': 4/60,
+                'employee_id': self.empl_employee.id,
+            }, {
+                'name': 'Timesheet',
+                'project_id': self.project_customer.id,
+                'task_id': self.task1.id,
+                'unit_amount': 4/60,
+                'employee_id': self.empl_employee.id,
+            },
+        ])
+        self.assertEqual(self.task1.progress, 100, 'The percentage of planned hours should be 100%.')

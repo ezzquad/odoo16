@@ -11,6 +11,11 @@ _logger = logging.getLogger(__name__)
 class TestTraceability(TestMrpCommon):
     TRACKING_TYPES = ['none', 'serial', 'lot']
 
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.env.ref('base.group_user').write({'implied_ids': [(4, cls.env.ref('stock.group_production_lot').id)]})
+
     def _create_product(self, tracking):
         return self.env['product.product'].create({
             'name': 'Product %s' % tracking,
@@ -616,3 +621,25 @@ class TestTraceability(TestMrpCommon):
             {'product_id': self.bom_4.product_id.id, 'lot_id': False, 'qty_done': 1},
             {'product_id': component.id, 'lot_id': serial_number.id, 'qty_done': 1},
         ])
+
+    def test_generate_serial_button(self):
+        """Test if lot in form "00000dd" is manually created, the generate serial
+        button can skip it and create the next one.
+        """
+        mo, _bom, p_final, _p1, _p2 = self.generate_mo(qty_base_1=1, qty_base_2=1, qty_final=1, tracking_final='lot')
+
+        # generate lot lot_0 on MO
+        mo.action_generate_serial()
+        lot_0 = mo.lot_producing_id.name
+        # manually create lot_1 (lot_0 + 1)
+        lot_1 = self.env['stock.lot'].create({
+            'name': str(int(lot_0) + 1).zfill(7),
+            'product_id': p_final.id,
+            'company_id': self.env.company.id,
+        }).name
+        # generate lot lot_2 on a new MO
+        mo = mo.copy()
+        mo.action_confirm()
+        mo.action_generate_serial()
+        lot_2 = mo.lot_producing_id.name
+        self.assertEqual(lot_2, str(int(lot_1) + 1).zfill(7))

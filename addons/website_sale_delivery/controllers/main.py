@@ -32,7 +32,7 @@ class WebsiteSaleDelivery(WebsiteSale):
         order = request.website.sale_get_order()
         carrier_id = int(post['carrier_id'])
         if order and carrier_id != order.carrier_id.id:
-            if any(tx.state not in ("canceled", "error", "draft") for tx in order.transaction_ids):
+            if any(tx.state not in ("cancel", "error", "draft") for tx in order.transaction_ids):
                 raise UserError(_('It seems that there is already a transaction for your order, you can not change the delivery method anymore'))
             order._check_carrier_quotation(force_carrier_id=carrier_id)
         return self._update_website_sale_delivery_return(order, **post)
@@ -261,15 +261,21 @@ class WebsiteSaleDelivery(WebsiteSale):
         values['shipping_address_update_route'] = self._express_checkout_shipping_route
         return values
 
-    def _get_shop_payment_values(self, order, **kwargs):
-        values = super(WebsiteSaleDelivery, self)._get_shop_payment_values(order, **kwargs)
+    def _get_shop_payment_errors(self, order):
+        errors = super()._get_shop_payment_errors(order)
         has_storable_products = any(line.product_id.type in ['consu', 'product'] for line in order.order_line)
 
         if not order._get_delivery_methods() and has_storable_products:
-            values['errors'].append(
-                (_('Sorry, we are unable to ship your order'),
-                 _('No shipping method is available for your current order and shipping address. '
-                   'Please contact us for more information.')))
+            errors.append((
+                _('Sorry, we are unable to ship your order'),
+                _('No shipping method is available for your current order and shipping address. '
+                   'Please contact us for more information.'),
+            ))
+        return errors
+
+    def _get_shop_payment_values(self, order, **kwargs):
+        values = super(WebsiteSaleDelivery, self)._get_shop_payment_values(order, **kwargs)
+        has_storable_products = any(line.product_id.type in ['consu', 'product'] for line in order.order_line)
 
         if has_storable_products:
             if order.carrier_id and not order.delivery_rating_success:

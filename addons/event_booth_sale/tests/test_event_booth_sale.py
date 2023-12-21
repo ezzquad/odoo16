@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from odoo import Command, fields
 from odoo.addons.event_booth_sale.tests.common import TestEventBoothSaleCommon
 from odoo.addons.sales_team.tests.common import TestSalesCommon
+from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 from odoo.tests.common import tagged, users
 from odoo.tools import float_compare
 
@@ -79,6 +80,14 @@ class TestEventBoothSale(TestEventBoothSaleWData):
         self.assertEqual(float_compare(sale_order.amount_total, 220.0, precision_rounding=0.1), 0,
                          "Total amount should be the sum of the booths prices with 10% taxes ($200.0 + $20.0).")
 
+        sale_order.pricelist_id = self.test_pricelist_with_discount_included
+        sale_order._recompute_prices()
+
+        self.assertEqual(float_compare(sale_order.amount_untaxed, 180.0, precision_rounding=0.1), 0,
+                         "Untaxed amount should be the sum of the booths prices with discount 10% ($180.0).")
+        self.assertEqual(float_compare(sale_order.amount_total, 198.0, precision_rounding=0.1), 0,
+                         "Total amount should be the sum of the booths prices with 10% taxes ($180.0 + $18.0).")
+
         # Confirm the SO.
         sale_order.action_confirm()
 
@@ -110,11 +119,11 @@ class TestEventBoothSale(TestEventBoothSaleWData):
 
 
 @tagged('post_install', '-at_install')
-class TestEventBoothSaleInvoice(TestEventBoothSaleWData):
+class TestEventBoothSaleInvoice(AccountTestInvoicingCommon, TestEventBoothSaleWData):
 
     @classmethod
-    def setUpClass(cls):
-        super(TestEventBoothSaleInvoice, cls).setUpClass()
+    def setUpClass(cls, chart_template_ref=None):
+        super().setUpClass(chart_template_ref=chart_template_ref)
 
         # Add group `group_account_invoice` to user_sales_salesman to allow to pay the invoice
         cls.user_sales_salesman.groups_id += cls.env.ref('account.group_account_invoice')

@@ -55,7 +55,7 @@
                                     <label for="expected_revenue" class="oe_edit_only pb-1" />
                                     <div class="d-flex align-items-end">
                                         <field name="company_currency" invisible="1"/>
-                                        <field name="expected_revenue" class="oe_inline o_input_8ch" widget='monetary' options="{'currency_field': 'company_currency'}"/>
+                                        <field name="expected_revenue" class="oe_inline o_input_13ch" widget='monetary' options="{'currency_field': 'company_currency'}"/>
                                         <span class="oe_grey p-2" groups="crm.group_use_recurring_revenues"> + </span>
                                         <span class="oe_grey p-2" groups="!crm.group_use_recurring_revenues"> at </span>
                                     </div>
@@ -328,7 +328,7 @@
                                         <field name="company_id"
                                             groups="base.group_multi_company"
                                             options="{'no_create': True}"/>
-                                        <field name="team_id" options="{'no_open': True, 'no_create': True}"/>
+                                        <field name="team_id" options="{'no_open': True, 'no_create': True}" context="{'kanban_view_ref' : 'sales_team.crm_team_view_kanban'}"/>
                                         <field name="day_open" />
                                         <field name="day_close"/>
                                         <field name="type" invisible="1"/>
@@ -464,6 +464,7 @@
                             'default_name': contact_name or partner_name,
                             'default_is_company': type == 'opportunity' and contact_name == False,
                             'default_company_name': type == 'opportunity' and partner_name,
+                            'default_type': 'contact',
                             'default_phone': phone,
                             'default_email': email_from,
                             'default_user_id': user_id,
